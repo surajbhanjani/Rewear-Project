@@ -1,14 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 
 import authRoutes from './routes/auth.js';
 import itemRoutes from './routes/item.js';
-import dotenvConfig from 'dotenv';
 import './config/cloudinary.js';
-
-dotenvConfig.config();
 
 const app = express();
 
