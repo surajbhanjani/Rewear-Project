@@ -19,6 +19,18 @@ export default function ItemDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Get logged-in user id from JWT
+  let userId = null;
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.id || payload._id || payload.userId;
+      } catch {}
+    }
+  }
+
   const handleSwap = async () => {
     setMessage('');
     try {
@@ -65,12 +77,15 @@ export default function ItemDetail() {
             <div className="mb-2 text-gray-500">Condition: {item.condition}</div>
             <div className="mb-4">{item.description}</div>
             <div className="mb-2 text-sm text-gray-500">Tags: {item.tags?.join(', ')}</div>
+            <div className="mb-2 text-yellow-700 font-semibold text-base">Points: {item.points}</div>
             <div className="mb-2 text-sm">Uploaded by: <span className="text-teal-700 font-semibold">{item.uploader?.name}</span></div>
             <div className="mb-4 text-sm">Status: <span className="font-semibold capitalize">{item.status}</span></div>
+            {item && userId && item.uploader !== userId && (
             <div className="flex gap-4">
               <button onClick={handleSwap} className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 transition">Swap Request</button>
               <button onClick={handleRedeem} className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">Redeem via Points</button>
             </div>
+          )}
             {message && <div className="mt-4 text-pink-600 font-semibold">{message}</div>}
           </div>
         </div>

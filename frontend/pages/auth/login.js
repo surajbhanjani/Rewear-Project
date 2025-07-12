@@ -18,6 +18,9 @@ export default function Login() {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       localStorage.setItem('token', res.data.token);
+      if (res.data.user && res.data.user.role) {
+        localStorage.setItem('role', res.data.user.role);
+      }
       toast.success('Login successful!');
       router.push('/dashboard');
     } catch (err) {

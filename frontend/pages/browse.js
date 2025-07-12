@@ -9,10 +9,33 @@ export default function Browse() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/api/items')
-      .then(res => setItems(res.data))
-      .catch(() => toast.error('Failed to load items'))
-      .finally(() => setLoading(false));
+    const fetchItems = async () => {
+      try {
+        const res = await axios.get('/api/items');
+        const token = localStorage.getItem('token');
+        let userId = null;
+        if (token) {
+          // Decode JWT to get user id
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          userId = payload.id || payload._id || payload.userId;
+        }
+        // Only show items that are approved and not uploaded by the current user
+        const filtered = res.data.filter(item => {
+          // uploader may be an object or a string; always compare as string
+          if (item.status !== 'approved') return false;
+          if (!userId) return true;
+          // item.uploader may be object or string (from population); handle both
+          const uploaderId = typeof item.uploader === 'object' ? item.uploader._id : item.uploader;
+          return String(uploaderId) !== String(userId);
+        });
+        setItems(filtered);
+      } catch {
+        toast.error('Failed to load items');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchItems();
   }, []);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size={16} /></div>;
@@ -33,6 +56,7 @@ export default function Browse() {
             <div className="font-bold text-lg text-teal-700">{item.title}</div>
             <div className="text-gray-600">{item.category} • {item.size}</div>
             <div className="text-gray-500 text-sm mt-1">{item.condition}</div>
+            <div className="text-yellow-700 font-semibold text-sm mt-1">Points: {item.points}</div>
           </Link>
         ))}
       </div>

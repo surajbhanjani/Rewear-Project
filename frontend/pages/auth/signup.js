@@ -19,6 +19,9 @@ export default function Signup() {
     try {
       const res = await axios.post('/api/auth/signup', { name, email, password });
       localStorage.setItem('token', res.data.token);
+      if (res.data.user && res.data.user.role) {
+        localStorage.setItem('role', res.data.user.role);
+      }
       toast.success('Signup successful!');
       router.push('/dashboard');
     } catch (err) {

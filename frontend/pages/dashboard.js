@@ -10,29 +10,100 @@ export default function Dashboard() {
   const [swaps, setSwaps] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Admins should not see dashboard, only users
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+
   useEffect(() => {
+    if (userRole === 'admin') return;
     const token = localStorage.getItem('token');
     if (!token) return;
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const [profileRes, itemsRes, swapsRes] = await Promise.all([
-          axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/user/items', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/user/swaps', { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-        setProfile(profileRes.data);
-        setItems(itemsRes.data);
-        setSwaps(swapsRes.data);
+        const token = localStorage.getItem('token');
+        const resProfile = await axios.get('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } });
+        setProfile(resProfile.data);
+        const resItems = await axios.get('/api/user/items', { headers: { Authorization: `Bearer ${token}` } });
+        setItems(resItems.data);
+        const resSwaps = await axios.get('/api/user/swaps', { headers: { Authorization: `Bearer ${token}` } });
+        setSwaps(resSwaps.data);
+        // Fetch incoming swap requests for items uploaded by this user
+        const resIncoming = await axios.get('/api/items');
+        const myId = resProfile.data._id;
+        const myItems = resIncoming.data.filter(item => item.uploader === myId);
+        // Gather all swaps for my items
+        let incoming = [];
+        for (const item of myItems) {
+          const resItemSwaps = await axios.get(`/api/items/${item._id}/swaps`);
+          incoming = incoming.concat(resItemSwaps.data);
+        }
+        setIncomingSwaps(incoming);
       } catch (err) {
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
+        toast.error('Failed to load dashboard');
       }
+      setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [userRole]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size={16} /></div>;
+  if (profile && profile.role === 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto mt-12 p-8 bg-white rounded shadow text-center">
+        <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
+        <p>Admins do not have a user dashboard. Please use the Admin panel to manage items and users.</p>
+      </div>
+    );
+  }
+
+  // Incoming swap/redeem requests for items uploaded by this user
+  function handleApprove(swapId) {
+    const token = localStorage.getItem('token');
+    axios.post(`/api/user/swap/${swapId}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      .then(() => {
+        toast.success('Swap approved!');
+        setIncomingSwaps(swaps => swaps.map(s => s._id === swapId ? { ...s, status: 'completed' } : s));
+      })
+      .catch(() => toast.error('Failed to approve swap'));
+  }
+  function handleReject(swapId) {
+    const token = localStorage.getItem('token');
+    axios.post(`/api/user/swap/${swapId}/reject`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      .then(() => {
+        toast.success('Swap rejected!');
+        setIncomingSwaps(swaps => swaps.map(s => s._id === swapId ? { ...s, status: 'rejected' } : s));
+      })
+      .catch(() => toast.error('Failed to reject swap'));
+  }
+
+  // Render incoming swaps
+  function renderIncomingSwaps() {
+    if (!incomingSwaps || incomingSwaps.length === 0) return null;
+    return (
+      <div className="mt-8">
+        <h2 className="text-lg font-bold mb-2">Incoming Swap/Redeem Requests</h2>
+        <div className="space-y-4">
+          {incomingSwaps.map(swap => (
+            <div key={swap._id} className="p-4 border rounded bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <div><span className="font-semibold">Item:</span> {swap.item?.title || swap.item}</div>
+                <div><span className="font-semibold">Requester:</span> {swap.requester?.name || swap.requester?.email}</div>
+                <div><span className="font-semibold">Type:</span> {swap.type}</div>
+                <div><span className="font-semibold">Status:</span> <span className={`font-bold ${swap.status === 'pending' ? 'text-yellow-700' : swap.status === 'completed' ? 'text-green-700' : 'text-red-700'}`}>{swap.status}</span></div>
+              </div>
+              {swap.status === 'pending' && (
+                <div className="mt-2 md:mt-0 flex gap-2">
+                  <button onClick={() => handleApprove(swap._id)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Approve</button>
+                  <button onClick={() => handleReject(swap._id)} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!profile) return <div className="min-h-screen flex items-center justify-center">Please log in.</div>;
 
   return (

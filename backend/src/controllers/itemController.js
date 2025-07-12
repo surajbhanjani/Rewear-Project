@@ -5,11 +5,12 @@ import cloudinary from '../config/cloudinary.js';
 
 export const addItem = async (req, res) => {
   try {
-    const { title, description, category, type, size, condition, tags, images } = req.body;
+    const { title, description, category, type, size, condition, tags, images, points } = req.body;
     const uploader = req.user.id;
     // images: array of Cloudinary URLs
     const item = new Item({
-      title, description, category, type, size, condition, tags, images, uploader
+      title, description, category, type, size, condition, tags, images, uploader,
+      points: Number(points) > 0 ? Number(points) : 10
     });
     await item.save();
     res.status(201).json(item);
@@ -50,7 +51,7 @@ export const requestSwap = async (req, res) => {
       status: 'pending',
     });
     await swap.save();
-    res.status(201).json(swap);
+    res.status(201).json({ message: 'Swap request sent and pending approval', swap });
   } catch (err) {
     res.status(500).json({ message: 'Failed to request swap', error: err.message });
   }
@@ -61,20 +62,17 @@ export const redeemWithPoints = async (req, res) => {
     const item = await Item.findById(req.params.id);
     if (!item || item.status !== 'approved') return res.status(400).json({ message: 'Item not available' });
     const user = await User.findById(req.user.id);
-    if (user.points < 10) return res.status(400).json({ message: 'Not enough points' });
-    user.points -= 10; // Example: 10 points per item
-    await user.save();
-    item.status = 'swapped';
-    await item.save();
+    if (user.points < item.points) return res.status(400).json({ message: 'Not enough points' });
+    // Create a pending redeem request (swap type: points)
     const swap = new Swap({
       item: item._id,
       requester: req.user.id,
       owner: item.uploader,
       type: 'points',
-      status: 'completed',
+      status: 'pending',
     });
     await swap.save();
-    res.status(201).json({ message: 'Redeemed with points', swap });
+    res.status(201).json({ message: 'Redeem request sent and pending approval', swap });
   } catch (err) {
     res.status(500).json({ message: 'Failed to redeem with points', error: err.message });
   }

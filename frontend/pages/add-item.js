@@ -6,7 +6,7 @@ import Spinner from '../components/Spinner';
 
 export default function AddItem() {
   const [form, setForm] = useState({
-    title: '', description: '', category: '', type: '', size: '', condition: '', tags: '', images: []
+    title: '', description: '', category: '', type: '', size: '', condition: '', tags: '', images: [], points: 10
   });
   const [imageFiles, setImageFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,6 +46,7 @@ export default function AddItem() {
       const token = localStorage.getItem('token');
       await axios.post('/api/items', {
         ...form,
+        points: Number(form.points) || 10,
         tags: form.tags.split(',').map(tag => tag.trim()),
         images: imageUrls,
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -73,6 +74,16 @@ export default function AddItem() {
         <input name="size" value={form.size} onChange={handleChange} placeholder="Size (e.g. M, L)" required className="w-full p-3 mb-4 border rounded" />
         <input name="condition" value={form.condition} onChange={handleChange} placeholder="Condition (e.g. New, Gently Used)" required className="w-full p-3 mb-4 border rounded" />
         <input name="tags" value={form.tags} onChange={handleChange} placeholder="Tags (comma separated)" className="w-full p-3 mb-4 border rounded" />
+        <input
+          name="points"
+          type="number"
+          min="1"
+          value={form.points}
+          onChange={handleChange}
+          placeholder="Points value (required)"
+          className="w-full p-3 mb-4 border rounded"
+          required
+        />
         <input type="file" accept="image/*" multiple onChange={handleImageChange} className="mb-4" />
         <button type="submit" disabled={loading} className="w-full bg-teal-600 text-white py-3 rounded font-semibold hover:bg-teal-700 transition flex items-center justify-center">
           {loading ? <Spinner size={8} /> : 'List Item'}

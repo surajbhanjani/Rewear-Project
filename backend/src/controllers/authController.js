@@ -8,7 +8,13 @@ export const signup = async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: 'Email already exists' });
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword, name });
+    const user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role: 'user',
+      points: 100 // Initial signup bonus
+    });
     await user.save();
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ user: { email: user.email, name: user.name, role: user.role, points: user.points }, token });

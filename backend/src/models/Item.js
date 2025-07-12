@@ -10,6 +10,7 @@ const itemSchema = new mongoose.Schema({
   tags: [String],
   images: [String], // Cloudinary URLs
   uploader: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  points: { type: Number, default: 10 }, // Points value set by uploader
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'swapped'], default: 'pending' },
   createdAt: { type: Date, default: Date.now },
 });
