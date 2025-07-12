@@ -30,11 +30,7 @@ export default function Home() {
         <p className="text-lg md:text-2xl text-gray-700 max-w-xl text-center mb-8">
           Exchange unused clothing through direct swaps or a point-based system. Join our community to promote sustainable fashion and reduce textile waste!
         </p>
-        <div className="flex flex-col md:flex-row gap-4 mb-10">
-          <Link href="/auth/login" className="px-6 py-3 rounded bg-teal-600 text-white font-semibold shadow hover:bg-teal-700 transition">Start Swapping</Link>
-          <Link href="/browse" className="px-6 py-3 rounded bg-pink-500 text-white font-semibold shadow hover:bg-pink-600 transition">Browse Items</Link>
-          <Link href="/add-item" className="px-6 py-3 rounded bg-yellow-500 text-white font-semibold shadow hover:bg-yellow-600 transition">List an Item</Link>
-        </div>
+
         <div className="w-full max-w-2xl">
           <div className="rounded-lg bg-white shadow p-6">
             <h2 className="text-xl font-bold mb-4 text-teal-700">Featured Items</h2>

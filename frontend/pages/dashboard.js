@@ -9,9 +9,17 @@ export default function Dashboard() {
   const [items, setItems] = useState([]);
   const [swaps, setSwaps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
+  const [swapToApprove, setSwapToApprove] = useState(null);
+  const [offeredItemId, setOfferedItemId] = useState("");
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [incomingSwaps, setIncomingSwaps] = useState([]);
 
-  // Admins should not see dashboard, only users
-  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('role'));
+    }
+  }, []);
 
   useEffect(() => {
     if (userRole === 'admin') return;
@@ -46,6 +54,7 @@ export default function Dashboard() {
     fetchData();
   }, [userRole]);
 
+  if (userRole === null) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size={16} /></div>;
   if (profile && profile.role === 'admin') {
     return (
@@ -56,13 +65,33 @@ export default function Dashboard() {
     );
   }
 
-  // Incoming swap/redeem requests for items uploaded by this user
-  function handleApprove(swapId) {
+  function handleApprove(swapId, swapType) {
+    if (swapType === 'swap') {
+      setSwapToApprove(swapId);
+      setShowSwapModal(true);
+      setOfferedItemId("");
+      return;
+    }
+    // For redeem
     const token = localStorage.getItem('token');
     axios.post(`/api/user/swap/${swapId}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => {
-        toast.success('Swap approved!');
+        toast.success('Redeem approved!');
         setIncomingSwaps(swaps => swaps.map(s => s._id === swapId ? { ...s, status: 'completed' } : s));
+      })
+      .catch(() => toast.error('Failed to approve redeem'));
+  }
+
+  function approveSwapWithItem() {
+    if (!offeredItemId) return toast.error('Select an item to swap');
+    const token = localStorage.getItem('token');
+    axios.post(`/api/user/swap/${swapToApprove}/approve`, { offeredItem: offeredItemId }, { headers: { Authorization: `Bearer ${token}` } })
+      .then(() => {
+        toast.success('Swap approved!');
+        setIncomingSwaps(swaps => swaps.map(s => s._id === swapToApprove ? { ...s, status: 'completed', offeredItem: offeredItemId } : s));
+        setShowSwapModal(false);
+        setSwapToApprove(null);
+        setOfferedItemId("");
       })
       .catch(() => toast.error('Failed to approve swap'));
   }
@@ -93,13 +122,40 @@ export default function Dashboard() {
               </div>
               {swap.status === 'pending' && (
                 <div className="mt-2 md:mt-0 flex gap-2">
-                  <button onClick={() => handleApprove(swap._id)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Approve</button>
+                  <button onClick={() => handleApprove(swap._id, swap.type)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Approve</button>
                   <button onClick={() => handleReject(swap._id)} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject</button>
                 </div>
+              )}
+              {swap.offeredItem && (
+                <div className="mt-2 text-sm text-teal-700">Offered Item: {items.find(i => i._id === swap.offeredItem)?.title || swap.offeredItem}</div>
               )}
             </div>
           ))}
         </div>
+        {/* Swap approval modal */}
+        {showSwapModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-xs relative">
+              <button onClick={() => setShowSwapModal(false)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700">&times;</button>
+              <h3 className="text-lg font-bold mb-2">Select Item to Swap</h3>
+              <select
+                className="w-full p-2 mb-4 border rounded"
+                value={offeredItemId}
+                onChange={e => setOfferedItemId(e.target.value)}
+              >
+                <option value="">-- Select your item --</option>
+                {items.filter(i => i.status !== 'swapped').map(item => (
+                  <option key={item._id} value={item._id}>{item.title}</option>
+                ))}
+              </select>
+              <button
+                onClick={approveSwapWithItem}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full"
+                disabled={!offeredItemId}
+              >Approve Swap</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

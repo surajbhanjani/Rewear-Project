@@ -10,17 +10,31 @@ export const approveSwap = async (req, res) => {
     if (swap.owner._id.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
     if (swap.status !== 'pending') return res.status(400).json({ message: 'Swap already processed' });
 
-    // Complete the swap
-    swap.status = 'completed';
-    await swap.save();
-
-    // Update item status
-    const item = await Item.findById(swap.item._id);
-    item.status = 'swapped';
-    await item.save();
-
+    // For item-for-item swap, require offeredItem
+    if (swap.type === 'swap') {
+      const { offeredItem } = req.body;
+      if (!offeredItem && !swap.offeredItem) {
+        return res.status(400).json({ message: 'You must select one of your items to swap.' });
+      }
+      // Save offeredItem if provided
+      if (offeredItem) {
+        swap.offeredItem = offeredItem;
+      }
+      if (!swap.offeredItem) {
+        return res.status(400).json({ message: 'No offered item specified.' });
+      }
+      // Mark both items as swapped
+      const item1 = await Item.findById(swap.item._id);
+      const item2 = await Item.findById(swap.offeredItem);
+      if (!item2) return res.status(400).json({ message: 'Selected offered item not found.' });
+      item1.status = 'swapped';
+      item2.status = 'swapped';
+      await item1.save();
+      await item2.save();
+    }
     // Redeem (points) logic
     if (swap.type === 'points') {
+      const item = await Item.findById(swap.item._id);
       const requester = await User.findById(swap.requester._id);
       const owner = await User.findById(swap.owner._id);
       if (requester.points < item.points) return res.status(400).json({ message: 'Requester does not have enough points' });
@@ -28,9 +42,11 @@ export const approveSwap = async (req, res) => {
       owner.points += item.points;
       await requester.save();
       await owner.save();
+      item.status = 'swapped';
+      await item.save();
     }
-    // For swap type, you can add additional logic here (e.g., reward points)
-
+    swap.status = 'completed';
+    await swap.save();
     return res.json({ message: 'Swap approved and completed', swap });
   } catch (err) {
     return res.status(500).json({ message: 'Failed to approve swap', error: err.message });
